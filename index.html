@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suitcase Packing - 0/1 Knapsack</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f5f1e3;
+            color: #4a3f35;
+            text-align: center;
+            margin: 20px;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+            width: 50%;
+            margin: auto;
+        }
+        h1 {
+            color: #5e412f;
+        }
+        input, button {
+            margin: 10px;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #bbb;
+        }
+        table {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #826a5c;
+            color: white;
+        }
+        table tr:hover {
+            background-color: #f0e6d6;
+        }
+        button {
+            background: #5e412f;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #463224;
+        }
+        .suitcase-container {
+            width: 300px;
+            height: 400px;
+            border: 3px solid #5e412f;
+            border-radius: 10px;
+            position: relative;
+            margin: 20px auto;
+            background: #ddd;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            overflow: hidden;
+        }
+        .packed-item {
+            width: 90%;
+            border-radius: 5px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            padding: 5px;
+            margin: 3px 0;  /* Added margin to prevent overlap */
+            line-height: 1.5;  /* Improves readability */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-text {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                width: 90%;
+            }
+            .suitcase-container {
+                width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Suitcase Packing - 0/1 Knapsack</h1>
+        <p>Enter items and suitcase weight capacity:</p>
+        
+        <label for="capacity">Suitcase Capacity (Weight):</label>
+        <input type="number" id="capacity" placeholder="Enter capacity" min="1" aria-label="Suitcase Capacity"><br>
+
+        <h3>Items:</h3>
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Weight</th>
+                <th>Quantity</th>
+                <th>Action</th>
+            </tr>
+            <tbody id="itemsTable"></tbody>
+        </table>
+
+        <input type="text" id="name" placeholder="Item Name" required>
+        <input type="number" id="weight" placeholder="Weight" min="1" required>
+        <input type="number" id="quantity" placeholder="Quantity" min="1" required>
+        <button onclick="addItem()">Add Item</button><br>
+
+        <button onclick="submitData()">Pack Suitcase</button>
+
+        <h3>Visual Suitcase Packing:</h3>
+        <div class="suitcase-container" id="suitcase"></div>
+        <div class="status-text" id="status-text">Available Space: 0 | Items Packed: 0</div>
+        <div id="loading" style="display: none;">Packing suitcase...</div>
+    </div>
+
+    <script>
+        const COLORS = ["#8b5e3b", "#c89f7b", "#6d4c41", "#d7b899", "#a67b5b"];
+        let items = [];
+
+        function addItem() {
+            let name = document.getElementById("name").value;
+            let weight = document.getElementById("weight").value;
+            let quantity = document.getElementById("quantity").value;
+
+            if (name && weight > 0 && quantity > 0) {
+                items.push({ name, size: parseInt(weight), value: parseInt(quantity) });
+                updateTable();
+                resetInputs("name", "weight", "quantity");
+            } else {
+                alert("Please enter valid item details.");
+            }
+        }
+
+        function updateTable() {
+            let table = document.getElementById("itemsTable");
+            table.innerHTML = "";
+            items.forEach((item, index) => {
+                table.innerHTML += `<tr>
+                    <td>${sanitizeHTML(item.name)}</td>
+                    <td>${sanitizeHTML(item.size.toString())}</td>
+                    <td>${sanitizeHTML(item.value.toString())}</td>
+                    <td><button onclick="removeItem(${index})">Remove</button></td>
+                </tr>`;
+            });
+        }
+
+        function removeItem(index) {
+            items.splice(index, 1);
+            updateTable();
+        }
+
+        function submitData() {
+            let capacity = document.getElementById("capacity").value;
+            if (capacity > 0 && items.length > 0) {
+                document.getElementById("loading").style.display = "block";
+                fetch('/pack', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items, capacity: parseInt(capacity) })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("loading").style.display = "none";
+                    document.getElementById("suitcase").innerHTML = "";
+                    document.getElementById("status-text").textContent = `Available Space: ${capacity} | Items Packed: 0`;
+                    visualizePacking(data.packed_items, capacity);
+                })
+                .catch(error => {
+                    document.getElementById("loading").style.display = "none";
+                    alert("An error occurred while packing the suitcase: " + error.message);
+                });
+            } else {
+                alert("Enter suitcase capacity and at least one item.");
+            }
+        }
+
+        function visualizePacking(packedItems, capacity) {
+            let suitcase = document.getElementById("suitcase");
+            suitcase.innerHTML = "";
+            let totalWeight = 0;
+            let packedCount = 0;
+            let colors = ["#8b5e3b", "#c89f7b", "#6d4c41", "#d7b899", "#a67b5b"];
+
+            let packedMap = {};
+            packedItems.forEach(item => {
+                packedMap[item] = (packedMap[item] || 0) + 1;
+            });
+
+            Object.keys(packedMap).forEach((itemName, index) => {
+                let itemData = items.find(i => i.name === itemName);
+                let quantity = packedMap[itemName];
+
+                for (let i = 0; i < quantity; i++) {
+                    let packedItem = document.createElement("div");
+                    packedItem.classList.add("packed-item");
+                    packedItem.textContent = `${itemName} (${i + 1}/${quantity})`;
+                    packedItem.style.background = colors[index % colors.length];
+                    packedItem.style.height = `${itemData.size * 3}px`; // Scale height
+                    packedItem.style.opacity = "0";
+                    suitcase.appendChild(packedItem);
+
+                    setTimeout(() => {
+                        packedItem.style.opacity = "1";
+                    }, (index * 500) + (i * 200)); // Smooth animation delay
+
+                    totalWeight += itemData.size;
+                    packedCount++;
+                }
+            });
+
+            setTimeout(() => {
+                document.getElementById("status-text").textContent = `Available Space: ${capacity - totalWeight} | Items Packed: ${packedCount}`;
+            }, 1000);
+        }
+
+        function resetInputs(...inputIds) {
+            inputIds.forEach(id => document.getElementById(id).value = "");
+        }
+
+        function sanitizeHTML(str) {
+            let temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+    </script>
+</body>
+</html>

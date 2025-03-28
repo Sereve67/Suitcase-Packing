@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualize Packing</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f5f1e3;
+            color: #4a3f35;
+            text-align: center;
+            margin: 20px;
+        }
+        .visualization-container {
+            width: 80%;
+            margin: auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .packed-item {
+            width: 100px;
+            border-radius: 5px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            padding: 10px;
+            margin: 10px;
+            transition: transform 0.3s;
+        }
+        .packed-item:hover {
+            transform: scale(1.1);
+        }
+        .status-text {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Visualize Packing</h1>
+    <div class="visualization-container" id="visualization"></div>
+    <div class="status-text" id="status-text">Items Packed: 0</div>
+    <div id="loading" style="display: none;">Loading visualization...</div>
+
+    <script>
+        const COLORS = ["#8b5e3b", "#c89f7b", "#6d4c41", "#d7b899", "#a67b5b"];
+
+        async function fetchPackedItems() {
+            document.getElementById("loading").style.display = "block";
+            try {
+                const response = await fetch('/api/packed-items');
+                const packedItems = await response.json();
+                visualizePackedItems(packedItems);
+            } catch (error) {
+                console.error("Error fetching packed items:", error);
+            } finally {
+                document.getElementById("loading").style.display = "none";
+            }
+        }
+
+        function visualizePackedItems(packedItems) {
+            let visualization = document.getElementById("visualization");
+            visualization.innerHTML = "";
+            let packedCount = 0;
+
+            packedItems.forEach((item, index) => {
+                let packedItem = document.createElement("div");
+                packedItem.classList.add("packed-item");
+                packedItem.textContent = item.name;
+                packedItem.style.background = COLORS[index % COLORS.length];
+                visualization.appendChild(packedItem);
+                packedCount++;
+            });
+
+            document.getElementById("status-text").textContent = `Items Packed: ${packedCount}`;
+        }
+
+        // Fetch packed items on page load
+        fetchPackedItems();
+    </script>
+</body>
+</html>
